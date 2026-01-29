@@ -1,6 +1,6 @@
 # Simple Collada DAE Exporter for Blender
 
-A simple Collada DAE format exporter plugin for Blender 5.0+                                                                        
+A simple Collada DAE format exporter plugin for Blender 5.0+, for Blender  stops supporting Collada DAE import-export since Blender 5.0.                                           
 
 ## Features
 
@@ -42,15 +42,17 @@ A simple Collada DAE format exporter plugin for Blender 5.0+
 - **Coordinate System**: Z-up (consistent with Blender)
 - **Units**: Meters
 
-## Author
+## Known Issues
 
-Feihei & AI
+1. Cannot export UVs, when "Export UVs" is enabled, error will be raised.
+2. When exporting multi-material object, only the material in the first slot will be exported.
+3. Using native python without numpy, when exporting complex mesh, it may be very slow or crashed. Avoid exporting complex mesh(es) at one time.
 
 ---
 
-# Blender 简单 Collada DAE 导出器
+# Blender 5.0+ 的 Collada DAE 导出器
 
-Blender从5.0版本开始停止支持collada dae格式。这是Blender 5.0+ 的简单 Collada DAE 格式导出插件，以供有需者使用。
+Blender从5.0版本开始停止支持collada dae格式。这是Blender 5.0+ 的简单 Collada DAE 格式导出插件，以供有需者使用。目前功能有限，仅够我自用。
 
 ## 功能特点
 
@@ -92,6 +94,8 @@ Blender从5.0版本开始停止支持collada dae格式。这是Blender 5.0+ 的�
 - **坐标系**: Z-up (与 Blender 一致)
 - **单位**: 米
 
-## 作者
+## 已知问题
 
-Feihei & AI
+1. 当导出 UV 时，无法导出 UV。
+2. 当导出多材质网格时，只导出第一个材质槽的材质。
+3. 使用原生 Python 而非 numpy ，当导出复杂网格时，可能会非常慢或崩溃，建议每次只导出少量简单物体，避免面数过多。

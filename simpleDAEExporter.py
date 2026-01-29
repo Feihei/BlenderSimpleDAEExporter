@@ -1,8 +1,8 @@
 bl_info = {
     "name": "Simple Collada DAE Exporter",
     "author": "Feihei & AI",
-    "version": (1, 0, 0),
-    "blender": (3, 0, 0),
+    "version": (0, 1, 0),
+    "blender": (5, 0, 0),
     "location": "File > Export",
     "description": "Export selected meshes to Collada DAE format",
     "category": "Import-Export",
