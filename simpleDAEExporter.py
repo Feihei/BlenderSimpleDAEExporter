@@ -185,7 +185,7 @@ class DAEExporter(Operator, ExportHelper):
 
         # Normals
         if self.export_normals:
-            normals = []
+            normals =n []
             for loop in mesh.loops:
                 no = obj.matrix_world.to_3x3() @ loop.normal
                 normals.extend([no.x, no.y, no.z])
@@ -196,10 +196,11 @@ class DAEExporter(Operator, ExportHelper):
         uv_layer = None
         if self.export_uv and mesh.uv_layers:
             uv_layer = mesh.uv_layers.active
-            if uv_layer:
+            if uv_layer and len(uv_layer.data) == len(mesh.loops):
                 uvs = []
-                for loop in mesh.loops:
-                    uvs.extend([loop.uv.x, loop.uv.y])
+                for i, loop in enumerate(mesh.loops):
+                    uv = uv_layer.data[i].uv
+                    uvs.extend([uv.x, uv.y])
                 self.add_source(mesh_node, "uvs", "ST", uvs,
                               f"{geom_id}-uvs", "float")
 
