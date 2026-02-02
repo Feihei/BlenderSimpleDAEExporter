@@ -290,11 +290,11 @@ class DAEExporter(Operator, ExportHelper):
                 instance_mat.set("symbol", f"{mat_name}-material")
                 instance_mat.set("target", f"#{mat_name}-material")
 
+    # 创建一个triangles元素，包含指定多边形的几何数据 create triangles element containing specified polygons geometry
     def create_triangles_element(self, parent, mesh, geom_id, mat_name, 
                                 material_symbol, polygons, uv_layer):
-        """创建一个triangles元素，包含指定多边形的几何数据"""
         
-        # 确定是triangles还是polylist
+        # decide using triangles or polylist
         is_triangulated = all(len(p.loop_indices) == 3 for p in polygons)
         
         if is_triangulated:
@@ -309,7 +309,7 @@ class DAEExporter(Operator, ExportHelper):
         if material_symbol:
             elem.set("material", material_symbol)
         
-        # 添加输入源引用
+        # add input source reference
         offset = 0
         
         input_vertex = ET.SubElement(elem, "input")
@@ -332,7 +332,7 @@ class DAEExporter(Operator, ExportHelper):
             input_uv.set("set", "0")
             offset += 1
 
-        # 收集索引
+        # 收集索引 collect indices
         indices = []
         for poly in polygons:
             loop_start = poly.loop_start
@@ -461,7 +461,7 @@ class DAEExporter(Operator, ExportHelper):
             color = ET.SubElement(diffuse, "color")
             color.set("sid", "diffuse")
             # Get diffuse color from principled or diffuse shader
-            rgb = [0.8, 0.8, 0.8, 1.0]  # Default
+            rgb = correct_color([0.8, 0.8, 0.8, 1.0])  # Default color with gamma correction
             if mat.use_nodes and mat.node_tree:
                 principled = None
                 for node in mat.node_tree.nodes:
@@ -470,7 +470,9 @@ class DAEExporter(Operator, ExportHelper):
                         break
                 if principled:
                     base_color = principled.inputs['Base Color'].default_value
-                    rgb = list(base_color)
+                    rgb = correct_color(list(base_color)) # Principled color with gamma correction
+                else:
+                    rgb = correct_color([0.8, 0.8, 0.8, 1.0])
             
             color.text = f"{rgb[0]} {rgb[1]} {rgb[2]} {rgb[3] if len(rgb) > 3 else 1.0}"
 
@@ -485,6 +487,27 @@ class DAEExporter(Operator, ExportHelper):
 def menu_func_export(self, context):
     self.layout.operator(DAEExporter.bl_idname, text="Collada DAE (.dae)")
 
+# Linear to sRGB (Gamma correction)
+def linear_to_srgb(c):
+
+    if c <= 0.0031308:
+        return 0.0 if c < 0 else c * 12.92
+    else:
+        return 1.055 * (c ** (1.0 / 2.4)) - 0.055
+
+# RGB color Gamma correction，keep Alpha
+def correct_color(linear_rgb):
+
+    if len(linear_rgb) >= 3:
+        r, g, b = linear_rgb[0], linear_rgb[1], linear_rgb[2]
+        a = linear_rgb[3] if len(linear_rgb) > 3 else 1.0
+        return [
+            linear_to_srgb(r),
+            linear_to_srgb(g), 
+            linear_to_srgb(b),
+            a
+        ]
+    return linear_rgb
 
 def register():
     bpy.utils.register_class(DAEExporter)
