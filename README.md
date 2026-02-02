@@ -44,8 +44,7 @@ A simple Collada DAE format exporter plugin for Blender 5.0+, for Blender  stops
 
 ## Known Issues
 
-1. When exporting multi-material object, only the material in the first slot will be exported.
-2. Using native python without numpy, when exporting complex mesh, it may be very slow or crashed. Avoid exporting complex mesh(es) at one time.
+1. Using native python without numpy, when exporting complex mesh, it may be very slow or crashed. Avoid exporting complex mesh(es) at one time.
 
 ---
 
@@ -95,5 +94,4 @@ Blender从5.0版本开始停止支持collada dae格式。这是Blender 5.0+ 的�
 
 ## 已知问题
 
-1. 当导出多材质网格时，只导出第一个材质槽的材质。
-2. 使用原生 Python 而非 numpy ，当导出复杂网格时，可能会非常慢或崩溃，建议每次只导出少量简单物体，避免面数过多。
+1. 使用原生 Python 而非 numpy ，当导出复杂网格时，可能会非常慢或崩溃，建议每次只导出少量简单物体，避免面数过多。

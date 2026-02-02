@@ -185,7 +185,7 @@ class DAEExporter(Operator, ExportHelper):
 
         # Normals
         if self.export_normals:
-            normals =n []
+            normals = []
             for loop in mesh.loops:
                 no = obj.matrix_world.to_3x3() @ loop.normal
                 normals.extend([no.x, no.y, no.z])
@@ -223,61 +223,41 @@ class DAEExporter(Operator, ExportHelper):
             vcount = ET.SubElement(triangles, "vcount")
             vcount.text = ' '.join([str(len(p.loop_indices)) for p in mesh.polygons])
 
-        # Material reference
-        mat_name = None
+        # 收集并导出所有使用的材质
+        material_map = {}  # material_index -> mat_name
         if self.export_materials and obj.material_slots:
-            mat = obj.material_slots[0].material
-            if mat:
-                mat_name = mat.name.replace(" ", "_")
-                material_url = self.export_material(
-                    mat, libraries, base_path, 
-                    exported_materials, exported_images
-                )
-                triangles.set("material", f"{mat_name}-material")
+            for slot_idx, slot in enumerate(obj.material_slots):
+                if slot.material:
+                    mat_name = slot.material.name.replace(" ", "_")
+                    material_map[slot_idx] = mat_name
+                    self.export_material(
+                        slot.material, libraries, base_path,
+                        exported_materials, exported_images
+                    )
 
-        # Inputs
-        offset = 0
-        input_vertex = ET.SubElement(triangles, "input")
-        input_vertex.set("semantic", "VERTEX")
-        input_vertex.set("source", f"#{geom_id}-vertices")
-        input_vertex.set("offset", str(offset))
-        offset += 1
-
-        if self.export_normals:
-            input_normal = ET.SubElement(triangles, "input")
-            input_normal.set("semantic", "NORMAL")
-            input_normal.set("source", f"#{geom_id}-normals")
-            input_normal.set("offset", str(offset))
-            offset += 1
-
-        if uv_layer:
-            input_uv = ET.SubElement(triangles, "input")
-            input_uv.set("semantic", "TEXCOORD")
-            input_uv.set("source", f"#{geom_id}-uvs")
-            input_uv.set("offset", str(offset))
-            input_uv.set("set", "0")
-
-        # Indices
-        indices = []
+        # 按材质索引分组多边形
+        polys_by_mat = {}
         for poly in mesh.polygons:
-            loop_start = poly.loop_start
-            loop_total = poly.loop_total
-            
-            # Get vertices per loop
-            for i in range(loop_total):
-                loop_idx = loop_start + i
-                vertex_idx = mesh.loops[loop_idx].vertex_index
-                
-                idx_str = str(vertex_idx)
-                if self.export_normals:
-                    idx_str += f" {loop_idx}"  # Normal uses loop index
-                if uv_layer:
-                    idx_str += f" {loop_idx}"  # UV uses loop index
-                
-                indices.append(idx_str)
+            mat_idx = poly.material_index
+            if mat_idx not in polys_by_mat:
+                polys_by_mat[mat_idx] = []
+            polys_by_mat[mat_idx].append(poly)
 
-        p = ET.SubElement(triangles, "p")
-        p.text = ' '.join(indices)
+        # 为每个材质组创建独立的triangles元素
+        # 如果对象没有材质，创建一个默认的无材质triangles
+        if not material_map:
+            self.create_triangles_element(
+                mesh_node, mesh, geom_id, "default", None,
+                mesh.polygons, uv_layer
+            )
+        else:
+            for mat_idx, mat_name in material_map.items():
+                polys = polys_by_mat.get(mat_idx, [])
+                if polys:  # 只导出实际有面的材质组
+                    self.create_triangles_element(
+                        mesh_node, mesh, geom_id, mat_name, f"{mat_name}-material",
+                        polys, uv_layer
+                    )
 
         # Clean up temp mesh
         if self.apply_modifiers or not self.apply_modifiers:
@@ -300,12 +280,81 @@ class DAEExporter(Operator, ExportHelper):
         instance_geom = ET.SubElement(node, "instance_geometry")
         instance_geom.set("url", f"#{geom_id}")
         
-        if mat_name:
+        if material_map:
             bind_material = ET.SubElement(instance_geom, "bind_material")
             technique = ET.SubElement(bind_material, "technique_common")
-            instance_mat = ET.SubElement(technique, "instance_material")
-            instance_mat.set("symbol", f"{mat_name}-material")
-            instance_mat.set("target", f"#{mat_name}-material")
+            
+            # 为每个使用的材质创建绑定
+            for mat_idx, mat_name in material_map.items():
+                instance_mat = ET.SubElement(technique, "instance_material")
+                instance_mat.set("symbol", f"{mat_name}-material")
+                instance_mat.set("target", f"#{mat_name}-material")
+
+    def create_triangles_element(self, parent, mesh, geom_id, mat_name, 
+                                material_symbol, polygons, uv_layer):
+        """创建一个triangles元素，包含指定多边形的几何数据"""
+        
+        # 确定是triangles还是polylist
+        is_triangulated = all(len(p.loop_indices) == 3 for p in polygons)
+        
+        if is_triangulated:
+            elem = ET.SubElement(parent, "triangles")
+            elem.set("count", str(len(polygons)))
+        else:
+            elem = ET.SubElement(parent, "polylist")
+            elem.set("count", str(len(polygons)))
+            vcount = ET.SubElement(elem, "vcount")
+            vcount.text = ' '.join([str(len(p.loop_indices)) for p in polygons])
+        
+        if material_symbol:
+            elem.set("material", material_symbol)
+        
+        # 添加输入源引用
+        offset = 0
+        
+        input_vertex = ET.SubElement(elem, "input")
+        input_vertex.set("semantic", "VERTEX")
+        input_vertex.set("source", f"#{geom_id}-vertices")
+        input_vertex.set("offset", str(offset))
+        offset += 1
+        
+        input_normal = ET.SubElement(elem, "input")
+        input_normal.set("semantic", "NORMAL")
+        input_normal.set("source", f"#{geom_id}-normals")
+        input_normal.set("offset", str(offset))
+        offset += 1
+        
+        if uv_layer:
+            input_uv = ET.SubElement(elem, "input")
+            input_uv.set("semantic", "TEXCOORD")
+            input_uv.set("source", f"#{geom_id}-uvs")
+            input_uv.set("offset", str(offset))
+            input_uv.set("set", "0")
+            offset += 1
+
+        # 收集索引
+        indices = []
+        for poly in polygons:
+            loop_start = poly.loop_start
+            loop_total = poly.loop_total
+            
+            for i in range(loop_total):
+                loop_idx = loop_start + i
+                vertex_idx = mesh.loops[loop_idx].vertex_index
+                
+                idx_parts = [str(vertex_idx)]
+                
+                # 法线索引（使用loop索引）
+                idx_parts.append(str(loop_idx))
+                
+                # UV索引（使用loop索引）
+                if uv_layer:
+                    idx_parts.append(str(loop_idx))
+                
+                indices.append(' '.join(idx_parts))
+        
+        p = ET.SubElement(elem, "p")
+        p.text = ' '.join(indices)
 
     def add_source(self, parent, name, components, data, id_str, data_type):
         source = ET.SubElement(parent, "source")
