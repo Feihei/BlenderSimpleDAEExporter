@@ -211,17 +211,6 @@ class DAEExporter(Operator, ExportHelper):
         input_pos.set("semantic", "POSITION")
         input_pos.set("source", f"#{geom_id}-positions")
 
-        # Triangles or Polylist
-        triangles = None
-        if self.triangulate:
-            triangles = ET.SubElement(mesh_node, "triangles")
-            triangles.set("count", str(len(mesh.polygons)))
-        else:
-            # Use polylist for quads/ngons
-            triangles = ET.SubElement(mesh_node, "polylist")
-            triangles.set("count", str(len(mesh.polygons)))
-            vcount = ET.SubElement(triangles, "vcount")
-            vcount.text = ' '.join([str(len(p.loop_indices)) for p in mesh.polygons])
 
         # 收集并导出所有使用的材质
         material_map = {}  # material_index -> mat_name
